@@ -47,15 +47,80 @@ interface Task {
   aiFeedback?: string;
   allowOverride?: boolean;
 }
-// === סימולציית שרת ה-AI (נשאר כמו קודם) ===
-const analyzeImageInServer = async (file: File, expectedRoom: string): Promise<{ isValid: boolean, reason?: string }> => {
-  // סימולציה זמנית: מאשרים תמיד כל תמונה באופן מיידי
+
+
+const checkIsBlurry = async (file: File): Promise<{ isBlurry: boolean; score: number }> => {
   return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ isValid: true });
-    }, 1000); // המתנה של שנייה אחת רק בשביל לראות את האנימציה של ה-AI
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // @ts-ignore - OpenCV (cv) נטען גלובלית מהסקריפט
+        const cv = window.cv;
+        if (!cv) {
+          console.warn("OpenCV not loaded yet");
+          return resolve({ isBlurry: false, score: 0 });
+        }
+
+        // המרת התמונה לפורמט של OpenCV
+        let src = cv.imread(img);
+        let gray = new cv.Mat();
+
+        // 1. המרה לשחור לבן
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+        // 2. חישוב הלפלסיאן
+        let laplacian = new cv.Mat();
+        cv.Laplacian(gray, laplacian, cv.CV_64F);
+
+        // 3. חישוב הוריאנס (הציון)
+        let mean = new cv.Mat();
+        let stddev = new cv.Mat();
+        cv.meanStdDev(laplacian, mean, stddev);
+
+        const score = stddev.data64F[0] * stddev.data64F[0]; // Variance
+
+        // ניקוי זיכרון (חשוב מאוד ב-OpenCV.js!)
+        src.delete(); gray.delete(); laplacian.delete(); mean.delete(); stddev.delete();
+
+        // סף טשטוש (Threshold) - בדרך כלל בין 100 ל-300, תלוי במצלמה
+        const THRESHOLD = 70;
+        resolve({ isBlurry: score < THRESHOLD, score });
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   });
 };
+
+// === סימולציית שרת ה-AI (נשאר כמו קודם) ===
+const analyzeImageInServer = async (file: File, expectedRoom: string): Promise<{ isValid: boolean, reason?: string }> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('taskId', expectedRoom);
+
+  try {
+    // שליחת התמונה לשרת ה-Node.js שלך בפורט 3001
+    const response = await fetch('http://localhost:3001/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    // אם השרת החזיר 200 OK
+    if (response.ok && data.success) {
+      return { isValid: true };
+    } else {
+      // אם השרת החזיר 400 (למשל, מצא רטיבות), נחזיר את ההודעה היפה שהוא ייצר
+      return { isValid: false, reason: data.error || 'המערכת זיהתה פערים בתמונה.' };
+    }
+  } catch (error) {
+    console.error("Server connection error:", error);
+    return { isValid: false, reason: 'שגיאת תקשורת עם השרת. ודא ששרת ה-Node פועל ברקע.' };
+  }
+};
+
 
 export default function InsuranceUploadApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -104,34 +169,42 @@ export default function InsuranceUploadApp() {
   }, []);
 
   const handlePhotoCaptured = async (taskId: string, file: File) => {
-    setShowCamera(false);
-
-    const currentTask = tasks.find(t => t.id === taskId);
-    if (!currentTask) return;
-
-    // יוצרים כתובת לתמונה שצולמה
+    // 1. יצירת URL לתצוגה מקדימה כדי שהמשתמש יראה מה הוא צילם
     const previewUrl = URL.createObjectURL(file);
 
+    // 2. בדיקת טשטוש עם OpenCV
+    const blurCheck = await checkIsBlurry(file);
+    console.log("Blur Score:", blurCheck.score);
+
+    if (blurCheck.isBlurry) {
+      // === כאן אנחנו חוסמים את השליחה ===
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? {
+          ...t,
+          status: 'rejected', // מסמנים כנדחה
+          previewUrl: previewUrl, // מראים לו את התמונה המטושטשת שיבין למה
+          aiFeedback: `התמונה יצאה מטושטשת מדי (ציון חדות: ${Math.round(blurCheck.score)}). אנא צלם שוב במקום מואר ובלי להזיז את המצלמה.`
+        } : t
+      ));
+      return; // עצירה! לא ממשיכים לניתוח שרת/AI
+    }
+
+    // 3. אם התמונה חדה - ממשיכים כרגיל
     setTasks(prev => prev.map(t =>
-      t.id === taskId ? { ...t, status: 'analyzing', file: file, previewUrl: previewUrl, aiFeedback: undefined } : t
+      t.id === taskId ? { ...t, status: 'analyzing', file, previewUrl } : t
     ));
 
-    try {
-      const aiResponse = await analyzeImageInServer(file, currentTask.name);
+    // סימולציית שליחה לשרת (שרק אחרי שהיא מצליחה הסטטוס יהיה uploaded)
+    const result = await analyzeImageInServer(file, currentTask.name);
 
-      if (aiResponse.isValid) {
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploaded' } : t));
-
-        setTimeout(() => {
-          if (currentIndex < tasks.length - 1) setCurrentIndex(prev => prev + 1);
-        }, 1500);
-      } else {
-        setTasks(prev => prev.map(t =>
-          t.id === taskId ? { ...t, status: 'rejected', aiFeedback: aiResponse.reason, allowOverride: true } : t
-        ));
-      }
-    } catch (error) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'rejected', aiFeedback: 'שגיאת תקשורת' } : t));
+    if (result.isValid) {
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: 'uploaded' } : t
+      ));
+    } else {
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: 'rejected', aiFeedback: result.reason } : t
+      ));
     }
   };
 
@@ -344,9 +417,10 @@ export default function InsuranceUploadApp() {
 
         {currentIndex < tasks.length - 1 ? (
           <button
-            onClick={() => setCurrentIndex(prev => Math.min(tasks.length - 1, prev + 1))}
+            variant="contained"
+            onClick={() => setCurrentIndex(prev => prev + 1)}
+            // הכפתור יהיה זמין רק אם התמונה אושרה סופית
             disabled={currentTask.status !== 'uploaded'}
-            style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', backgroundColor: currentTask.status === 'uploaded' ? '#2563eb' : '#94a3b8', color: '#fff', cursor: 'pointer' }}
           >
             הבא
           </button>
