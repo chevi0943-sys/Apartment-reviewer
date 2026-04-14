@@ -1,6 +1,9 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import myData from '../data.json'; // ודא שהנתיב תקין
 import CameraCapture from './CameraCapture';
+import { ButtonHTMLAttributes } from 'react';
+import button from './Button';
+
 // === הטיפוסים שלנו ===
 interface PropertyCharacteristics {
   area_sqm: number;
@@ -47,6 +50,19 @@ interface Task {
   aiFeedback?: string;
   allowOverride?: boolean;
 }
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant: 'primary' | 'secondary' | 'danger' | string; // עדיף להשתמש בערכים ספציפיים מאשר סתם 'string'
+}
+
+const Button = ({ variant, children, ...rest }: ButtonProps) => {
+  return (
+    // 3. שימוש ב-variant (למשל עבור class) והעברת שאר המאפיינים (כמו onClick, disabled) הלאה לאלמנט עצמו
+    <button className={`btn ${variant}`} {...rest}>
+      {children}
+    </button>
+  );
+};
+
 
 
 const checkIsBlurry = async (file: File): Promise<{ isBlurry: boolean; score: number }> => {
@@ -416,14 +432,14 @@ export default function InsuranceUploadApp() {
         </button>
 
         {currentIndex < tasks.length - 1 ? (
-          <button
+          <Button
             variant="contained"
             onClick={() => setCurrentIndex(prev => prev + 1)}
             // הכפתור יהיה זמין רק אם התמונה אושרה סופית
             disabled={currentTask.status !== 'uploaded'}
           >
             הבא
-          </button>
+          </Button>
         ) : (
           <button
             onClick={handleSubmit}
