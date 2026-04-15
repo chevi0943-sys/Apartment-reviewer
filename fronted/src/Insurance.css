@@ -1,0 +1,238 @@
+Insurance.css
+
+/* רקע כללי של האפליקציה - אפור/תכלת עדין מאוד */
+.app-wrapper {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding: 40px 20px;
+  font-family: 'Heebo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* הכרטיסייה המרכזית (Glass/Soft effect) */
+.modern-card {
+  background: #ffffff;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  padding: 35px 30px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* כותרות */
+.header-title {
+  font-size: 24px;
+  color: #0f172a;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.header-subtitle {
+  color: #64748b;
+  font-size: 15px;
+  margin-top: 0;
+}
+
+/* סרגל התקדמות */
+.progress-container {
+  margin-bottom: 35px;
+}
+
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: #f1f5f9;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  /* מעבר צבע (גרדיאנט) כחול מודרני */
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 10px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* אזור המשימה (איפה שהתמונה או הכפתורים) */
+.task-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  padding: 30px 20px;
+  text-align: center;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+  background-color: #f8fafc;
+}
+
+.task-area.success-state {
+  background-color: #f0fdf4;
+  border-color: #86efac;
+}
+
+/* תמונת התצוגה המקדימה */
+.preview-image-container {
+  width: 100%;
+  height: 220px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s;
+}
+
+/* כפתורים כלליים ועיצוב קומפוננטת ה-Button שלך */
+.btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* סוגי כפתורים */
+.primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.secondary {
+  background-color: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.danger {
+  background-color: #ef4444;
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
+.danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background-color: #dc2626;
+}
+
+.success-btn {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+
+/* תיבת שגיאה מודרנית */
+.error-box {
+  margin-top: 20px;
+  background-color: #fef2f2;
+  border-right: 4px solid #ef4444;
+  padding: 16px;
+  border-radius: 8px 12px 12px 8px;
+  color: #991b1b;
+  width: 100%;
+  font-size: 14px;
+  text-align: right;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+}
+
+/* ספינר הניתוח */
+.analyzing-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-weight: 800;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  backdrop-filter: blur(4px);
+}
+
+.spin-icon {
+  animation: spin 2s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* סידור כפתורים תחתונים */
+.bottom-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.image-preview-wrapper img {
+  width: 100%;
+  height: 100%;
+  /* שינינו מ-cover ל-contain כדי שהתמונה תוקטן ותיכנס כולה למסגרת */
+  object-fit: contain; 
+  /* הוספנו רקע עדין למקרה שהתמונה לא ממלאת את כל הריבוע בגלל פרופורציות שונות */
+  background-color: #f1f5f9; 
+  transition: opacity 0.3s;
+}
+
+/* הגבלת הגודל של המצלמה עצמה (אם היא משתמשת בתגית video או img) */
+video, canvas {
+  max-width: 100%;
+  height: auto;
+  max-height: 60vh; /* מונע מהמצלמה לתפוס יותר מ-60% מגובה המסך */
+  border-radius: 12px;
+  object-fit: contain;
+}

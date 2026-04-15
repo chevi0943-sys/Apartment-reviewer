@@ -1,14 +1,16 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
-import myData from '../data.json'; // ודא שהנתיב תקין
+import myData from '../data.json';
 import CameraCapture from './CameraCapture';
 import { ButtonHTMLAttributes } from 'react';
-import button from './Button';
+//import button from './Button';
+import Button from './Button';
+import './Insurance.css';
 
 // === הטיפוסים שלנו ===
 interface PropertyCharacteristics {
   area_sqm: number;
   rooms: number;
-  bathrooms: number; // שונה מ-bathrooms_count
+  bathrooms: number;
   has_balcony: boolean;
   balcony_area_sqm: number;
   has_storage_room: boolean;
@@ -50,18 +52,6 @@ interface Task {
   aiFeedback?: string;
   allowOverride?: boolean;
 }
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant: 'primary' | 'secondary' | 'danger' | string; // עדיף להשתמש בערכים ספציפיים מאשר סתם 'string'
-}
-
-const Button = ({ variant, children, ...rest }: ButtonProps) => {
-  return (
-    // 3. שימוש ב-variant (למשל עבור class) והעברת שאר המאפיינים (כמו onClick, disabled) הלאה לאלמנט עצמו
-    <button className={`btn ${variant}`} {...rest}>
-      {children}
-    </button>
-  );
-};
 
 
 
@@ -100,7 +90,7 @@ const checkIsBlurry = async (file: File): Promise<{ isBlurry: boolean; score: nu
         src.delete(); gray.delete(); laplacian.delete(); mean.delete(); stddev.delete();
 
         // סף טשטוש (Threshold) - בדרך כלל בין 100 ל-300, תלוי במצלמה
-        const THRESHOLD = 70;
+        const THRESHOLD = 50;
         resolve({ isBlurry: score < THRESHOLD, score });
       };
       img.src = e.target?.result as string;
@@ -185,41 +175,44 @@ export default function InsuranceUploadApp() {
   }, []);
 
   const handlePhotoCaptured = async (taskId: string, file: File) => {
-    // 1. יצירת URL לתצוגה מקדימה כדי שהמשתמש יראה מה הוא צילם
+    // 1. מיד סוגרים את המצלמה כדי שהמשתמש יחזור למסך הראשי
+    setShowCamera(false);
+
     const previewUrl = URL.createObjectURL(file);
 
-    // 2. בדיקת טשטוש עם OpenCV
+    // 2. מיד!! מעדכנים את המסך כדי להראות ספינר של "מנתח..."
+    // כך המשתמש רואה שמשהו קורה ולא חושב שהאפליקציה נתקעה
+    setTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, status: 'analyzing', file, previewUrl, aiFeedback: undefined } : t
+    ));
+
+    // 3. עכשיו אפשר לבצע את הבדיקה הכבדה של OpenCV ברקע
     const blurCheck = await checkIsBlurry(file);
-    console.log("Blur Score:", blurCheck.score);
 
     if (blurCheck.isBlurry) {
-      // === כאן אנחנו חוסמים את השליחה ===
+      // אם מטושטש, משנים את הסטטוס לדחייה
       setTasks(prev => prev.map(t =>
         t.id === taskId ? {
           ...t,
-          status: 'rejected', // מסמנים כנדחה
-          previewUrl: previewUrl, // מראים לו את התמונה המטושטשת שיבין למה
-          aiFeedback: `התמונה יצאה מטושטשת מדי (ציון חדות: ${Math.round(blurCheck.score)}). אנא צלם שוב במקום מואר ובלי להזיז את המצלמה.`
+          status: 'rejected',
+          aiFeedback: `התמונה יצאה מטושטשת מדי (ציון: ${Math.round(blurCheck.score)}). אנא צלם שוב.`
         } : t
       ));
-      return; // עצירה! לא ממשיכים לניתוח שרת/AI
+      return; // עוצרים כאן ולא שולחים לשרת
     }
 
-    // 3. אם התמונה חדה - ממשיכים כרגיל
-    setTasks(prev => prev.map(t =>
-      t.id === taskId ? { ...t, status: 'analyzing', file, previewUrl } : t
-    ));
-
-    // סימולציית שליחה לשרת (שרק אחרי שהיא מצליחה הסטטוס יהיה uploaded)
-    const result = await analyzeImageInServer(file, currentTask.name);
+    // 4. התמונה חדה? ממשיכים לשלוח לשרת (או לסימולציה)
+    const taskName = tasks.find(t => t.id === taskId)?.name || '';
+    const result = await analyzeImageInServer(file, taskName);
 
     if (result.isValid) {
+      // משנים סטטוס להצלחה, אבל לא עוברים אוטומטית!
       setTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, status: 'uploaded' } : t
       ));
     } else {
       setTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, status: 'rejected', aiFeedback: result.reason } : t
+        t.id === taskId ? { ...t, status: 'rejected', aiFeedback: result.reason, allowOverride: true } : t
       ));
     }
   };
@@ -244,11 +237,8 @@ export default function InsuranceUploadApp() {
       const aiResponse = await analyzeImageInServer(file, currentTask.name);
 
       if (aiResponse.isValid) {
+        // משנים סטטוס להצלחה ומחכים שהמשתמש ילחץ על הבא
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploaded' } : t));
-
-        setTimeout(() => {
-          if (currentIndex < tasks.length - 1) setCurrentIndex(prev => prev + 1);
-        }, 1500);
       } else {
         setTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, status: 'rejected', aiFeedback: aiResponse.reason, allowOverride: true } : t
@@ -263,11 +253,8 @@ export default function InsuranceUploadApp() {
 
 
   const forceApproveTask = (taskId: string) => {
+    // רק משנים את הסטטוס להצלחה, כפתור 'הבא' כבר יידלק לבד
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploaded' } : t));
-    // מעבר אוטומטי לשלב הבא
-    setTimeout(() => {
-      if (currentIndex < tasks.length - 1) setCurrentIndex(prev => prev + 1);
-    }, 800);
   };
 
   const handleSubmit = async () => {
@@ -452,6 +439,9 @@ export default function InsuranceUploadApp() {
       </div>
     </div>
   );
-}
 
+
+
+
+}
 
